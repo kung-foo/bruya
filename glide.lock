@@ -1,0 +1,46 @@
+hash: aadc0a5ba156f99676a5278438c5f12ffaa5d18ee7f967b2b056b14e48858eb6
+updated: 2017-09-17T15:59:37.357881338+02:00
+imports:
+- name: github.com/docopt/docopt-go
+  version: 784ddc588536785e7299f7272f39101f7faccc3f
+- name: github.com/go-redis/redis
+  version: fdafb11e5fa5d52d965e12073c8a58468c98ebe2
+  subpackages:
+  - internal
+  - internal/consistenthash
+  - internal/hashtag
+  - internal/pool
+  - internal/proto
+- name: github.com/gogo/protobuf
+  version: 2adc21fd136931e0388e278825291678e1d98309
+  subpackages:
+  - gogoproto
+  - proto
+  - protoc-gen-gogo/descriptor
+- name: github.com/nats-io/go-nats
+  version: 29f9728a183bf3fa7e809e14edac00b33be72088
+  subpackages:
+  - encoders/builtin
+  - util
+- name: github.com/nats-io/go-nats-streaming
+  version: 6e620057a207bd61e992c1c5b6a2de7b6a4cb010
+  subpackages:
+  - pb
+- name: github.com/nats-io/nuid
+  version: 289cccf02c178dc782430d534e3c1f5b72af807f
+- name: github.com/paulbellamy/ratecounter
+  version: 524851a93235ac051e3540563ed7909357fe24ab
+- name: github.com/pkg/errors
+  version: 645ef00459ed84a119197bfb8d8205042c6df63d
+- name: github.com/sirupsen/logrus
+  version: f006c2ac4710855cf0f916dd6b77acf6b048dc6e
+- name: golang.org/x/crypto
+  version: 7d9177d70076375b9a59c8fde23d52d9c4a7ecd5
+  subpackages:
+  - ssh/terminal
+- name: golang.org/x/sys
+  version: 07c182904dbd53199946ba614a412c61d3c548f5
+  subpackages:
+  - unix
+  - windows
+testImports: []

@@ -1,0 +1,41 @@
+version: '3.2'
+
+services:
+  redis:
+    image: redis:3-alpine
+    ports:
+      - "6379:6379"
+  stan:
+    image: nats-streaming:0.5.0
+    command: ["-m", "8222", "-SD", "--store", "MEMORY"]
+    ports:
+      - "4222:4222"
+      - "8222:8222"
+  bruya:
+    build:
+      dockerfile: Dockerfile.develop
+      context: .
+    ports:
+      - "6060:6060"
+    command: ["go", "run", "app/main.go", "-v",
+        "--debug-force-color",
+        "--debug-http=:6060",
+        "--redis=redis://redis:6379",
+        "--nats=nats://stan:4222",
+        "--channel=test",
+        "--channel=test.*",
+      ]
+    depends_on:
+      - redis
+      - stan
+  nats-client:
+    build:
+      dockerfile: Dockerfile.nats-client
+      context: .
+    command: ["go", "run", "stan-sub.go",
+      "-s", "nats://stan:4222/",
+      "-id", "bruya-test-client",
+      "test",
+    ]
+    depends_on:
+      - stan
