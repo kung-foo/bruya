@@ -35,3 +35,7 @@ build-docker-windows:
 	mv $(OUTPUT) $(OUTPUT).exe
 
 release: build-docker-alpine build-docker-alpine build-docker-windows
+
+tag:
+	git tag v$(VERSION)
+	git push origin --tags
