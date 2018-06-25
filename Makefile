@@ -1,4 +1,4 @@
-VERSION := 0.1.0
+VERSION := 0.2.0
 NAME := bruya
 GH_PATH := github.com/kung-foo/$(NAME)
 BUILDSTRING := $(shell git log --pretty=format:'%h' -n 1)
