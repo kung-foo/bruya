@@ -6,36 +6,59 @@ services:
     ports:
       - "6379:6379"
   stan:
-    image: nats-streaming:0.5.0
+    image: nats-streaming:0.10.0
     command: ["-m", "8222", "-SD", "--store", "MEMORY"]
-    ports:
-      - "4222:4222"
-      - "8222:8222"
-  bruya:
+  nats:
+    image: nats:1.1.0
+    command: ["-m", "8222", "-D"]
+  bruya-stan:
     build:
       dockerfile: Dockerfile.develop
       context: .
-    ports:
-      - "6060:6060"
     command: ["go", "run", "app/main.go", "-v",
         "--debug-force-color",
         "--debug-http=:6060",
         "--redis=redis://redis:6379",
-        "--nats=nats://stan:4222",
+        "--stan=nats://stan:4222",
         "--channel=test",
         "--channel=test.*",
       ]
     depends_on:
       - redis
       - stan
-  nats-client:
+  bruya-nats:
     build:
-      dockerfile: Dockerfile.nats-client
+      dockerfile: Dockerfile.develop
       context: .
-    command: ["go", "run", "stan-sub.go",
+    command: ["go", "run", "app/main.go", "-v",
+        "--debug-force-color",
+        "--debug-http=:6060",
+        "--redis=redis://redis:6379",
+        "--nats=nats://nats:4222",
+        "--channel=test",
+        "--channel=test.*",
+      ]
+    depends_on:
+      - redis
+      - nats
+  stan-client:
+    build:
+      dockerfile: Dockerfile.stan-client
+      context: .
+    command: ["go", "run", "stan-sub/main.go",
       "-s", "nats://stan:4222/",
       "-id", "bruya-test-client",
       "test",
     ]
     depends_on:
       - stan
+  nats-client:
+    build:
+      dockerfile: Dockerfile.nats-client
+      context: .
+    command: ["go", "run", "nats-sub.go",
+      "-s", "nats://nats:4222/",
+      "test",
+    ]
+    depends_on:
+      - nats

@@ -31,11 +31,11 @@
 
 [[constraint]]
   name = "github.com/go-redis/redis"
-  version = "6.6.1"
+  version = "6.12.0"
 
 [[constraint]]
   name = "github.com/nats-io/go-nats-streaming"
-  version = "0.3.4"
+  version = "0.4.0"
 
 [[constraint]]
   name = "github.com/nats-io/nuid"
@@ -47,8 +47,12 @@
 
 [[constraint]]
   name = "github.com/sirupsen/logrus"
-  version = "1.0.3"
+  version = "1.0.5"
 
 [prune]
   go-tests = true
   unused-packages = true
+
+[[constraint]]
+  name = "github.com/nats-io/go-nats"
+  version = "1.5.0"

@@ -5,6 +5,7 @@ import (
 	"net/url"
 
 	"github.com/go-redis/redis"
+	nats "github.com/nats-io/go-nats"
 	stan "github.com/nats-io/go-nats-streaming"
 	"github.com/nats-io/nuid"
 	"github.com/pkg/errors"
@@ -18,6 +19,7 @@ func DefaultNameMangler(redisChannelName string) (natsSubjectName string) {
 
 type Options struct {
 	NatsURL           *url.URL
+	Streaming         bool
 	RedisURL          *url.URL
 	ClusterID         string
 	ClientID          string
@@ -25,8 +27,26 @@ type Options struct {
 	NameMangler       NameManglerFunc
 }
 
+type publisher interface {
+	Publish(subj string, data []byte) error
+	Close() error
+}
+
+type nconnwrapper struct {
+	nconn *nats.Conn
+}
+
+func (n *nconnwrapper) Publish(subj string, data []byte) error {
+	return n.nconn.Publish(subj, data)
+}
+
+func (n *nconnwrapper) Close() error {
+	n.nconn.Close()
+	return nil
+}
+
 type Bruya struct {
-	sconn           stan.Conn
+	publisher       publisher
 	rconn           *redis.Client
 	nameManglerFunc NameManglerFunc
 	rchannels       []string
@@ -36,6 +56,17 @@ type Bruya struct {
 }
 
 func New(options *Options) (*Bruya, error) {
+	var err error
+	var rconn *redis.Client
+
+	defer func() {
+		if err != nil {
+			if rconn != nil {
+				rconn.Close()
+			}
+		}
+	}()
+
 	if options.RedisURL.Scheme != "redis" {
 		return nil, errors.Errorf("Invalid redis URL: %+v", options.RedisURL)
 	}
@@ -49,7 +80,7 @@ func New(options *Options) (*Bruya, error) {
 		return nil, err
 	}
 
-	rconn := redis.NewClient(roptions)
+	rconn = redis.NewClient(roptions)
 
 	_, err = rconn.Ping().Result()
 	if err != nil {
@@ -58,8 +89,6 @@ func New(options *Options) (*Bruya, error) {
 
 	logger.Debugf("[bruya   ] connected to redis at: %s", options.RedisURL.String())
 
-	noptions := stan.NatsURL(options.NatsURL.String())
-
 	// Note: we use a _new_ nuid because otherwise it shares the same prefix
 	// as the one in the stan client. Not a big deal, but it looks visually
 	// confusing. TODO: make a PR in stan to create their _own_ instance.
@@ -67,18 +96,32 @@ func New(options *Options) (*Bruya, error) {
 		options.ClientID = fmt.Sprintf("bruya-%s", nuid.New().Next())
 	}
 
-	if options.ClusterID == "" {
-		options.ClusterID = "test-cluster"
+	var p publisher
+
+	if options.Streaming {
+		if options.ClusterID == "" {
+			options.ClusterID = "test-cluster"
+		}
+		noptions := stan.NatsURL(options.NatsURL.String())
+		sconn, err := stan.Connect(options.ClusterID, options.ClientID, noptions)
+
+		if err != nil {
+			return nil, err
+		}
+
+		p = sconn
+
+		logger.Debugf("[bruya   ] connected to nats streaming: %v", sconn.NatsConn().ConnectedUrl())
+	} else {
+		nconn, err := nats.Connect(options.NatsURL.String())
+
+		if err != nil {
+			return nil, err
+		}
+
+		p = &nconnwrapper{nconn}
+		logger.Debugf("[bruya   ] connected to nats: %v", nconn.ConnectedUrl())
 	}
-
-	sconn, err := stan.Connect(options.ClusterID, options.ClientID, noptions)
-
-	if err != nil {
-		rconn.Close()
-		return nil, err
-	}
-
-	logger.Debugf("[bruya   ] connected to nats streaming: %v", sconn.NatsConn().ConnectedUrl())
 
 	nmfn := options.NameMangler
 	if nmfn == nil {
@@ -91,7 +134,7 @@ func New(options *Options) (*Bruya, error) {
 
 	return &Bruya{
 		rconn:           rconn,
-		sconn:           sconn,
+		publisher:       p,
 		done:            make(chan struct{}),
 		nameManglerFunc: nmfn,
 		rchannels:       options.RedisChannelNames,
@@ -102,8 +145,9 @@ func New(options *Options) (*Bruya, error) {
 
 func (b *Bruya) Stop() error {
 	close(b.done)
-	b.sconn.Close()
+	b.publisher.Close()
 	b.rconn.Close()
+
 	return nil
 }
 
@@ -120,7 +164,7 @@ func (b *Bruya) Run() (err error) {
 		select {
 		case msg := <-psc:
 			name := b.nameManglerFunc(msg.Channel)
-			err = b.sconn.Publish(name, []byte(msg.Payload))
+			err = b.publisher.Publish(name, []byte(msg.Payload))
 			if err != nil {
 				err = errors.Wrapf(err, "redis channel: \"%s\"", name)
 				return

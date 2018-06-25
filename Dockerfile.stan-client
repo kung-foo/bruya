@@ -1,0 +1,7 @@
+FROM golang:1.10-alpine
+
+RUN apk add --update git
+
+RUN go get github.com/nats-io/go-nats-streaming
+
+WORKDIR /go/src/github.com/nats-io/go-nats-streaming/examples/

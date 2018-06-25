@@ -19,12 +19,14 @@ var VERSION = "0.0.0"
 
 var usage = `
 Usage:
-    bruya [options] [-v ...] [--redis=<url>] [--nats=<url>] [--channel=<channel>...]
+    bruya [options] [-v ...] [--redis=<url>] --nats=<url> [--channel=<channel>...]
+    bruya [options] [-v ...] [--redis=<url>] --stan=<url> [--channel=<channel>...]
     bruya -h | --help | --version
 
 Options:
     --redis=<url>           Redis URL [default: redis://localhost:6379]
-    --nats=<url>            NATS Streaming URL [default: nats://localhost:4222]
+    --nats=<url>            NATS URL
+    --stan=<url>            NATS Streaming URL
     --channel=<channel>     Redis channel(s) to subscribe to [default: *]
     --nats-cluster-id=<id>  NATS cluster ID [default: test-cluster]
     --debug-http=<bind>     Enable pprof/expvar HTTP server.
@@ -79,14 +81,29 @@ func mainEx(argv []string) {
 	r, err := url.Parse(args["--redis"].(string))
 	onErrorExit(err)
 
-	n, err := url.Parse(args["--nats"].(string))
-	onErrorExit(err)
+	var clusterID string
+	var nURL *url.URL
+	var streaming bool
+
+	if args["--nats"] != nil {
+		streaming = false
+		nURL, err = url.Parse(args["--nats"].(string))
+		onErrorExit(err)
+	}
+
+	if args["--stan"] != nil {
+		streaming = true
+		nURL, err = url.Parse(args["--stan"].(string))
+		clusterID = args["--nats-cluster-id"].(string)
+		onErrorExit(err)
+	}
 
 	bruya, err := bruya.New(&bruya.Options{
-		ClusterID:         args["--nats-cluster-id"].(string),
 		RedisURL:          r,
-		NatsURL:           n,
+		NatsURL:           nURL,
+		Streaming:         streaming,
 		RedisChannelNames: args["--channel"].([]string),
+		ClusterID:         clusterID,
 	})
 
 	onErrorExit(err)

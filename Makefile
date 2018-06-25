@@ -18,7 +18,7 @@ RUN_CMD := docker run --rm -u $(UID):$(GID) $(DOCKER_OPTS)
 clean:
 	rm -rf dist/*
 
-$(OUTPUT): glide.lock app/main.go *.go
+$(OUTPUT): Gopkg.lock app/main.go *.go
 	@mkdir -p dist/
 	$(BUILD_CMD)
 
